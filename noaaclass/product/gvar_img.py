@@ -50,6 +50,7 @@ class api(core.api):
         self.translate(multiple, 'satellite', direct, 'Satellite', direct)
         self.translate(multiple, 'channel', int, 'chan_%s' % self.name, str)
         self.translate(single, 'format', direct, 'format_%s' % self.name, str)
+        self.translate(single, 'bits', direct, 'bits_%s' % self.name, str)
 
     def subscribe_get_append_orders(self, noaa, d, append_files, hours, async):
         page = noaa.get('order_list?order=%s&type=SUBS&displayDetails=Y'
@@ -228,7 +229,10 @@ class api(core.api):
             tmp['page'] = page
             noaa.post('results%s' % self.name, data=tmp, form_name='rform')
             page += 1
-            lapse += timedelta(hours=6)
+            items_on_page = int(forms['rform']['items_on_page'][0])
+            if items_on_page < 10:
+                break
+            lapse += timedelta(minutes=30)
         forms = noaa.translator.get_forms(noaa.last_response_soup)
         tmp = forms['rform']
         forms = noaa.translator.get_forms(noaa.last_response_soup)
@@ -236,7 +240,9 @@ class api(core.api):
         forms = noaa.translator.get_forms(noaa.last_response_soup)
         tmp = forms['shop']
         trans = (lambda k, v, e: [e['format']]
-                 if 'format' in k else (e['channel'] if 'channel' in k else v))
+                 if 'format' in k else
+                 (e['channel'] if 'channel' in k else
+                  ([e['bits']] if 'bits' in k else v)))
         tmp = {k: trans(k, v, e) for k, v in tmp.items()}
         tmp['cocoon-action'] = ['PlaceOrder']
         self.conn.post('shop', data=tmp, form_name='shop')
